@@ -4,7 +4,8 @@ name: heartbeat
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    # alle 15 Minuten, bewusst neben den Lastspitzen zur vollen Viertelstunde (dort verwirft GitHub geplante Laeufe)
+    - cron: "4,19,34,49 * * * *"
     - cron: "17 5 1 * *"
   workflow_dispatch:
     inputs:
