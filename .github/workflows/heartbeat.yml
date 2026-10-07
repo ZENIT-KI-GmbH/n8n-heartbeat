@@ -1,5 +1,7 @@
 name: heartbeat
 
+# Fehlgeschlagene geplante Laeufe benachrichtigen den Nutzer, der die cron-Zeilen zuletzt geaendert hat.
+
 on:
   schedule:
     - cron: "*/15 * * * *"
