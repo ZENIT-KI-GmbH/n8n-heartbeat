@@ -41,11 +41,12 @@ function umgebung(overrides = {}) {
   };
 }
 
-function lauf({ auth = `Bearer ${SECRET}`, env = umgebung(), fetchImpl } = {}) {
+function lauf({ auth = `Bearer ${SECRET}`, env = umgebung(), fetchImpl, userAgent = 'vercel-cron/1.0' } = {}) {
   const logs = [];
   const pausen = [];
   return verarbeite({
     authHeader: auth,
+    userAgent,
     env,
     fetchImpl,
     warte: async (ms) => { pausen.push(ms); },
@@ -230,14 +231,22 @@ test('Log: genau eine Zeile je Lauf im festen Format', async () => {
   assert.equal(r.logs.length, 1);
   assert.match(
     r.logs[0],
-    /^zeit_utc=2026-10-08T12:00:00Z ergebnis=fehler grund=http_503 simulation=aus alarm=gesendet$/,
+    /^zeit_utc=2026-10-08T12:00:00Z ergebnis=fehler grund=http_503 simulation=aus alarm=gesendet quelle=cron$/,
   );
 });
 
 test('Log: ok-Lauf', async () => {
   const f = fakeFetch({ gesund: [antwort(200)] });
   const r = await lauf({ fetchImpl: f });
-  assert.deepEqual(r.logs, ['zeit_utc=2026-10-08T12:00:00Z ergebnis=ok grund=- simulation=aus alarm=-']);
+  assert.deepEqual(r.logs, ['zeit_utc=2026-10-08T12:00:00Z ergebnis=ok grund=- simulation=aus alarm=- quelle=cron']);
+});
+
+test('Log: Aufruf ohne Vercel-Cron-User-Agent ist quelle=manuell', async () => {
+  const f = fakeFetch({ gesund: [antwort(200)] });
+  const r = await lauf({ fetchImpl: f, userAgent: 'curl/8.0' });
+  assert.ok(r.logs[0].endsWith(' quelle=manuell'), r.logs[0]);
+  const r2 = await lauf({ fetchImpl: f, userAgent: null });
+  assert.ok(r2.logs[0].endsWith(' quelle=manuell'), r2.logs[0]);
 });
 
 test('Log und Antworten enthalten nie Adresse, Webhook oder Secret', async () => {
