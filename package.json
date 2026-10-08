@@ -1,0 +1,8 @@
+{
+  "name": "n8n-heartbeat",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}
