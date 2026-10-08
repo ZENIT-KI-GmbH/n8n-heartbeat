@@ -1,25 +1,17 @@
-name: heartbeat
+name: heartbeat-aussenprobe
 
-# Fehlgeschlagene geplante Laeufe benachrichtigen den Nutzer, der die cron-Zeilen zuletzt geaendert hat.
+# Manuelle Außenprobe (kein Alarmweg).
+# Der automatische Heartbeat läuft auf Vercel (vercel.json, api/heartbeat.js) und alarmiert per Slack.
+# Der frühere GitHub-Cron ist entfernt (07./08.10.2026: 3 geplante Läufe in ~18 h).
 
 on:
-  schedule:
-    # alle 15 Minuten, bewusst neben den Lastspitzen zur vollen Viertelstunde (dort verwirft GitHub geplante Laeufe)
-    - cron: "4,19,34,49 * * * *"
-    - cron: "17 5 1 * *"
   workflow_dispatch:
-    inputs:
-      keepalive:
-        description: "Keepalive-Commit statt Erreichbarkeitsprüfung"
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
 jobs:
   check:
-    if: github.event.schedule != '17 5 1 * *' && !inputs.keepalive
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
@@ -28,20 +20,11 @@ jobs:
       - name: Erreichbarkeit pruefen
         env:
           ZIEL: ${{ vars.N8N_HEALTH_URL }}
-          SIMULATION: ${{ vars.HEARTBEAT_SIMULATION }}
         run: |
           set -u
           if [ -z "${ZIEL:-}" ]; then
             echo "::error::Repo-Variable N8N_HEALTH_URL fehlt"
             exit 1
-          fi
-          HOST="${ZIEL#*://}"; HOST="${HOST%%/*}"
-          echo "::add-mask::$ZIEL"
-          echo "::add-mask::$HOST"
-          MODUS="aus"
-          if [ "${SIMULATION:-}" = "instanz-weg" ]; then
-            ZIEL="https://heartbeat-simulation.invalid/healthz"
-            MODUS="instanz-weg"
           fi
           RC=0
           CODE=$(curl -fsS --max-time 20 --retry 1 --retry-delay 10 -o /dev/null -w '%{http_code}' "$ZIEL" 2>/dev/null) || RC=$?
@@ -51,27 +34,10 @@ jobs:
           else
             ERGEBNIS="fehler"
           fi
-          ZEILE="zeit_utc=$ZEIT ergebnis=$ERGEBNIS http=${CODE:-000} curl_exit=$RC simulation=$MODUS"
+          ZEILE="zeit_utc=$ZEIT ergebnis=$ERGEBNIS http=${CODE:-000} curl_exit=$RC"
           echo "$ZEILE"
           echo "$ZEILE" >> "$GITHUB_STEP_SUMMARY"
           if [ "$ERGEBNIS" != "ok" ]; then
             echo "::error::Instanz nicht erreichbar ($ZEILE)"
             exit 1
           fi
-
-  keepalive:
-    if: github.event.schedule == '17 5 1 * *' || inputs.keepalive
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Keepalive-Commit
-        run: |
-          date -u +%Y-%m-%dT%H:%M:%SZ > keepalive.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add keepalive.txt
-          git commit -m "chore: keepalive $(date -u +%Y-%m-%d)"
-          git push

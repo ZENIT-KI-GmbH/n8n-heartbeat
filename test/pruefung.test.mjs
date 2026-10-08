@@ -108,7 +108,7 @@ test('pruefe: zweimal HTTP-Fehler ergibt grund "http <code>" des letzten Versuch
 // --- verarbeite: Autorisierung -------------------------------------------
 
 for (const [name, auth] of [
-  ['fehlender Header', undefined],
+  ['fehlender Header', null],
   ['leerer Header', ''],
   ['falsches Secret', `Bearer ${'b'.repeat(40)}`],
   ['Secret ohne Bearer', SECRET],
@@ -242,7 +242,7 @@ test('Log: ok-Lauf', async () => {
 
 test('Log und Antworten enthalten nie Adresse, Webhook oder Secret', async () => {
   const faelle = [
-    { auth: undefined, f: fakeFetch({ gesund: [antwort(200)] }) },
+    { auth: null, f: fakeFetch({ gesund: [antwort(200)] }) },
     { f: fakeFetch({ gesund: [antwort(200)] }) },
     { f: fakeFetch({ gesund: [new TypeError(`connect ECONNREFUSED ${ZIEL}`)], slack: [new TypeError(`fail ${WEBHOOK}`)] }) },
     { f: fakeFetch({ gesund: [antwort(503)], slack: [antwort(200, 'ok')] }) },
